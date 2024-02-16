@@ -44,7 +44,7 @@ bzero(int dev, int bno)
 
   bp = bread_wr(dev, bno);
   memset(bp->data, 0, BSIZE);
-  log_write(bp);
+  //log_write(bp);
   brelse(bp);
 }
 
@@ -64,7 +64,7 @@ balloc(uint dev)
       m = 1 << (bi % 8);
       if((bp->data[bi/8] & m) == 0){  // Is block free?
         bp->data[bi/8] |= m;  // Mark block in use.
-        log_write(bp);
+        //log_write(bp);
         brelse(bp);
         bzero(dev, b + bi);
         return b + bi;
@@ -89,7 +89,7 @@ bfree(int dev, uint b)
   if((bp->data[bi/8] & m) == 0)
     panic("freeing free block");
   bp->data[bi/8] &= ~m;
-  log_write(bp);
+  //log_write(bp);
   brelse(bp);
 }
 
@@ -139,7 +139,7 @@ ialloc(uint dev, short type)
     if(dip->type == 0){  // a free inode
       memset(dip, 0, sizeof(*dip));
       dip->type = type;
-      log_write(bp);   // mark it allocated on the disk
+      //log_write(bp);   // mark it allocated on the disk
       brelse(bp);
       return iget(dev, inum);
     }
@@ -186,7 +186,7 @@ iupdate(struct inode *ip)
   dip->nlink = ip->nlink;
   dip->size = ip->size;
   memmove(dip->addrs, ip->addrs, sizeof(ip->addrs));
-  log_write(bp);
+  //log_write(bp);
   brelse(bp);
 }
 
@@ -373,7 +373,7 @@ writei(struct inode *ip, char *src, uint off, uint n)
     bp = bread_wr(ip->dev, bmap(ip, off/BSIZE));
     m = min(n - tot, BSIZE - off%BSIZE);
     memmove(bp->data + off%BSIZE, src, m);
-    log_write(bp);
+    //log_write(bp);
     brelse(bp);
   }
 

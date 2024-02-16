@@ -100,10 +100,15 @@ bwrite(struct buf *b)
   iderw(b);
 }
 
+
+
 struct buf* 
 bread_wr(uint dev, uint blockno) {
-  // IMPLEMENT YOUR CODE HERE
-  return 0;
+  struct buf *b = bread(dev, blockno);    //data from disk to buffer
+
+  log_write(b);   //write old values into log (in-mem)
+
+  return b;
 }
 
 // Release a buffer.

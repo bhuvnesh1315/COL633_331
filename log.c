@@ -175,15 +175,32 @@ log_write(struct buf *b)
 {
   int i;
 
+//cprintf("log_write %d\n", b->blockno);
+
   if (log.lh.n >= LOGSIZE || log.lh.n >= log.size - 1)
     panic("too big a transaction");
 
+  //b->blockno = log.start + log.lh.n;
   for (i = 0; i < log.lh.n; i++) {
     if (log.lh.block[i] == b->blockno)   // log absorbtion
       break;
   }
   log.lh.block[i] = b->blockno;
   if (i == log.lh.n)
-    log.lh.n++;
-  b->flags |= B_DIRTY; // prevent eviction
+  log.lh.n++;
+
+  // cprintf("b_blockno %d, data= %s\n", b->blockno, b->data);
+  
+  // cprintf("n %d, i= %d\n", log.lh.n, i);
+
+  b->blockno = log.start + log.lh.n;
+  
+  // cprintf("blockno %d, data= %s\n", b->blockno, b->data);
+
+  bwrite(b);
+  
+  //b->blockno = log.start + log.lh.n+1;
+
+  brelse(b);
+
 }
