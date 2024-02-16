@@ -173,14 +173,11 @@ commit()
 void
 log_write(struct buf *b)
 {
-  int i;
-
-//cprintf("log_write %d\n", b->blockno);
+  int i, block_pos;
 
   if (log.lh.n >= LOGSIZE || log.lh.n >= log.size - 1)
     panic("too big a transaction");
 
-  //b->blockno = log.start + log.lh.n;
   for (i = 0; i < log.lh.n; i++) {
     if (log.lh.block[i] == b->blockno)   // log absorbtion
       break;
@@ -189,18 +186,10 @@ log_write(struct buf *b)
   if (i == log.lh.n)
   log.lh.n++;
 
-  // cprintf("b_blockno %d, data= %s\n", b->blockno, b->data);
-  
-  // cprintf("n %d, i= %d\n", log.lh.n, i);
+  block_pos=i+1;
 
-  b->blockno = log.start + log.lh.n;
-  
-  // cprintf("blockno %d, data= %s\n", b->blockno, b->data);
-
+  b->blockno = log.start + block_pos;
   bwrite(b);
-  
-  //b->blockno = log.start + log.lh.n+1;
-
   brelse(b);
 
 }
