@@ -5,6 +5,7 @@
 #include "mmu.h"
 #include "x86.h"
 #include "proc.h"
+//#include "sysproc.h"
 
 struct {
   struct proc proc[NPROC];
@@ -14,6 +15,11 @@ static struct proc *initproc;
 
 int nextpid = 1;
 extern void trapret(void);
+
+unsigned int count_0=0;
+unsigned int count_1=0;
+
+unsigned long int total_0=0, total_1=0;
 
 int
 cpuid() {
@@ -84,6 +90,7 @@ pinit(int pol)
 {
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
+  int ret;
 
   p = allocproc();
   
@@ -104,7 +111,15 @@ pinit(int pol)
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
 
-  p->state = RUNNABLE;
+  ret = set_sched_policy(p, pol);
+  if(ret==0)
+  {  
+    p->state = RUNNABLE;
+    if(pol==0)
+      total_0++;
+    else
+      total_1++;
+  }
 }
 
 // process scheduler.
@@ -129,6 +144,32 @@ scheduler(void)
       if(p->state != RUNNABLE)
         continue;
 
+      
+      if(count_0 >=9 && count_1 >= 1)
+      {
+        count_0=0;
+        count_1=0;
+      }
+
+      if (p->policy == 0  )        //run foreground (0) process
+      { 
+        if (count_0<9 || total_1==0)
+        {  count_0++;
+           total_0--;
+        }
+        else 
+          continue;                 //skip when >=9 foreground process and <1 background
+      }
+      else if(p->policy == 1  )  //run background (1) process
+      {
+        if (count_1 < 1 || total_0==0)
+        { count_1++;
+          total_1--;
+        }
+        else 
+          continue;                //skip when <9 foreground process and >=1 background
+      }
+      
       // Switch to chosen process. 
       c->proc = p;
       p->state = RUNNING;
