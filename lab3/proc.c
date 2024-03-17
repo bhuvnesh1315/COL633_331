@@ -5,7 +5,6 @@
 #include "mmu.h"
 #include "x86.h"
 #include "proc.h"
-//#include "sysproc.h"
 
 struct {
   struct proc proc[NPROC];
@@ -15,9 +14,6 @@ static struct proc *initproc;
 
 int nextpid = 1;
 extern void trapret(void);
-
-unsigned int count_0=0;
-unsigned int count_1=0;
 
 unsigned long int total_0=0, total_1=0;
 
@@ -90,7 +86,6 @@ pinit(int pol)
 {
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
-  int ret;
 
   p = allocproc();
   
@@ -111,15 +106,14 @@ pinit(int pol)
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
 
-  ret = set_sched_policy(p, pol);
-  if(ret==0)
-  {  
-    p->state = RUNNABLE;
-    if(pol==0)
+  
+  p->state = RUNNABLE;
+  p->policy = pol;
+
+  if(pol==0)
       total_0++;
     else
       total_1++;
-  }
 }
 
 // process scheduler.
@@ -128,25 +122,44 @@ pinit(int pol)
 //  - swtch to start running that process
 //  - eventually that process transfers control
 //      via swtch back to the scheduler.
+
+void print(int i)
+{
+  //cprintf("\n--------------check %d--------------------------\n", i);
+}
+
 void
 scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
+
+  
+unsigned int count_0=0;
+unsigned int count_1=0;
   
   for(;;){
     // Enable interrupts on this processor.
     sti();
+ 
+
 
     // Loop over process table looking for process to run.
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
 
-      
+
+      //cprintf("\n--------------check 0--------------------------\n");
+      print(0);
+
       if(count_0 >=9 && count_1 >= 1)
       {
+        
+        //cprintf("\n--------------check 1--------------------------\n");
+        print(1);
+
         count_0=0;
         count_1=0;
       }
@@ -154,22 +167,44 @@ scheduler(void)
       if (p->policy == 0  )        //run foreground (0) process
       { 
         if (count_0<9 || total_1==0)
-        {  count_0++;
+        {  
+          //cprintf("\n--------------check 2--------------------------\n");
+          print(2);
+          
+          count_0++;
            total_0--;
         }
         else 
+        {
+          //cprintf("\n--------------check 3--------------------------\n");
+          print(3);
+          
           continue;                 //skip when >=9 foreground process and <1 background
+        }
       }
       else if(p->policy == 1  )  //run background (1) process
       {
         if (count_1 < 1 || total_0==0)
-        { count_1++;
+        { 
+          //cprintf("\n--------------check 4--------------------------\n");
+          print(4);
+          
+          count_1++;
           total_1--;
         }
         else 
+        {
+          //cprintf("\n--------------check 5--------------------------\n");
+          print(5);
+          
           continue;                //skip when <9 foreground process and >=1 background
+        }
       }
       
+    //cprintf("\n--------------check 6--------------------------\n");
+    print(6);
+
+
       // Switch to chosen process. 
       c->proc = p;
       p->state = RUNNING;
@@ -177,8 +212,10 @@ scheduler(void)
       switchuvm(p);
       swtch(&(c->scheduler), p->context);
     }
+
   }
 }
+
 
 // Enter scheduler.  Must hold only ptable.lock
 // and have changed proc->state. Saves and restores

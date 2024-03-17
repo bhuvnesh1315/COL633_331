@@ -19,9 +19,9 @@ main(void)
     printf(fd, "Task done by process with sched policy %d ... \n", ret);
   }
   if (ret == 0)
-    printf(fd, "Prateek\n");
+    printf(fd, "Scheduling policy retrieved is equal to 0.\n");
   else
-    printf(fd, "Something else\n");
+    printf(fd, "Scheduling policy retrieved is equal to 1.\n");
 
   close(fd);
 

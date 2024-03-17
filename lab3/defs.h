@@ -139,12 +139,5 @@ void            uartputc(int);
 void            seginit(void);
 void            switchuvm(struct proc*);
 
-// sysproc.c
-
-int set_sched_policy(struct proc *curproc, int policy);
-int get_sched_policy(void);
-
-
-
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

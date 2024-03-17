@@ -16,7 +16,7 @@ We would like to add a functionality using which a process can indicate to the o
 ## System Calls 
 In the first part of the lab, you must implement two system calls. In `proc.h`, there is a new field (`int policy`) which need to be set and used by the below system calls:
 
-- `int set_sched_policy(int policy)`: Using this system call, a process can indicate to the operating system whether it is a foreground or a background process. A foreground process would have `policy=0`, while a background process would have `policy=1`. The system call should return `0` if the policy for the process was set successfully, and `-22` in all other cases. 
+- `int set_sched_policy(void)`: Using this system call, a process can indicate to the operating system whether it is a foreground or a background process. A foreground process would have `policy=0`, while a background process would have `policy=1`. The system call should return `0` if the policy for the process was set successfully, and `-22` in all other cases. 
 
 - `int get_sched_policy(void)`: Using this system call, a process can get the scheduling policy for itself.
 

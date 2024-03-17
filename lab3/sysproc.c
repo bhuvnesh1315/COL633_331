@@ -8,28 +8,29 @@
 
 /* System Call Definitions */
 int 
-set_sched_policy(struct proc *curproc, int policy) //(struct proc *curproc, int policy)
+sys_set_sched_policy(void)
 {
-    //struct proc *curproc=myproc();
-    
-    curproc->policy = policy;
+     int policy;
 
-    cprintf("\n----------------------------------------------------------------\n\n\n");
-    cprintf("set_sched_policy, curr_proc->pid=%d, policy=%d\n", curproc->pid, policy);
+    // Extract the integer argument from the user stack
+    if (argint(0, &policy) < 0)
+        return -22; // Failed to get the argument
 
-    if(policy != 0 && policy != 1)
-     return -22;
+    // Validate the policy value
+    if (policy != 0 && policy != 1)
+        return -22; // Invalid policy value
 
-    return 0;
+    // Set the scheduling policy for the calling process
+    myproc()->policy = policy;
+
+    return 0; // Success
+
 }
 
 int 
-get_sched_policy(void)
+sys_get_sched_policy(void)
 {
-    struct proc *curproc = myproc();
+     int policy = myproc()->policy;
 
-    cprintf("\n----------------------------------------------------------------\n\n\n");
-    cprintf("get_sched_policy, curr_proc->pid=%d, policy=%d\n", curproc->pid, curproc->policy);
-
-    return curproc->policy;
+    return policy; 
 }
