@@ -15,7 +15,7 @@ static struct proc *initproc;
 int nextpid = 1;
 extern void trapret(void);
 
-unsigned long int total_0=0, total_1=0;
+int total_0=0, total_1=0;
 
 int
 cpuid() {
@@ -110,10 +110,10 @@ pinit(int pol)
   p->state = RUNNABLE;
   p->policy = pol;
 
-  if(pol==0)
-      total_0++;
-    else
-      total_1++;
+  // if(pol==0)
+  //     total_0++;
+  //   else
+  //     total_1++;
 }
 
 // process scheduler.
@@ -123,26 +123,30 @@ pinit(int pol)
 //  - eventually that process transfers control
 //      via swtch back to the scheduler.
 
-void print(int i)
-{
-  //cprintf("\n--------------check %d--------------------------\n", i);
-}
 
 void
 scheduler(void)
 {
-  struct proc *p;
+  struct proc *p, *p2;
   struct cpu *c = mycpu();
   c->proc = 0;
 
   
-unsigned int count_0=0;
-unsigned int count_1=0;
-  
+int count_0=0;
+int count_1=0;
+
   for(;;){
     // Enable interrupts on this processor.
-    sti();
- 
+    //sti();
+    cli();
+
+    for(p2 = ptable.proc; p2 < &ptable.proc[NPROC]; p2++)
+    {
+      if(p2->policy == 0)
+        total_0++;
+      else
+        total_1++;
+    }
 
 
     // Loop over process table looking for process to run.
@@ -151,15 +155,8 @@ unsigned int count_1=0;
         continue;
 
 
-      //cprintf("\n--------------check 0--------------------------\n");
-      print(0);
-
       if(count_0 >=9 && count_1 >= 1)
       {
-        
-        //cprintf("\n--------------check 1--------------------------\n");
-        print(1);
-
         count_0=0;
         count_1=0;
       }
@@ -168,17 +165,11 @@ unsigned int count_1=0;
       { 
         if (count_0<9 || total_1==0)
         {  
-          //cprintf("\n--------------check 2--------------------------\n");
-          print(2);
-          
           count_0++;
-           total_0--;
+          total_0--;
         }
         else 
         {
-          //cprintf("\n--------------check 3--------------------------\n");
-          print(3);
-          
           continue;                 //skip when >=9 foreground process and <1 background
         }
       }
@@ -186,24 +177,15 @@ unsigned int count_1=0;
       {
         if (count_1 < 1 || total_0==0)
         { 
-          //cprintf("\n--------------check 4--------------------------\n");
-          print(4);
-          
           count_1++;
           total_1--;
         }
         else 
         {
-          //cprintf("\n--------------check 5--------------------------\n");
-          print(5);
-          
           continue;                //skip when <9 foreground process and >=1 background
         }
       }
-      
-    //cprintf("\n--------------check 6--------------------------\n");
-    print(6);
-
+      //cprintf("\n----------------count_0=%d, count_1=%d, total0=%d, total1=%d\n", count_0, count_1, total_0, total_1);
 
       // Switch to chosen process. 
       c->proc = p;
@@ -212,7 +194,7 @@ unsigned int count_1=0;
       switchuvm(p);
       swtch(&(c->scheduler), p->context);
     }
-
+sti();
   }
 }
 
