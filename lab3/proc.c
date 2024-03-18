@@ -110,10 +110,6 @@ pinit(int pol)
   p->state = RUNNABLE;
   p->policy = pol;
 
-  // if(pol==0)
-  //     total_0++;
-  //   else
-  //     total_1++;
 }
 
 // process scheduler.
@@ -136,8 +132,7 @@ int count_0=0;
 int count_1=0;
 
   for(;;){
-    // Enable interrupts on this processor.
-    //sti();
+    // Disable interrupts on this processor.
     cli();
 
     for(p2 = ptable.proc; p2 < &ptable.proc[NPROC]; p2++)
@@ -185,8 +180,7 @@ int count_1=0;
           continue;                //skip when <9 foreground process and >=1 background
         }
       }
-      //cprintf("\n----------------count_0=%d, count_1=%d, total0=%d, total1=%d\n", count_0, count_1, total_0, total_1);
-
+      
       // Switch to chosen process. 
       c->proc = p;
       p->state = RUNNING;
@@ -194,7 +188,8 @@ int count_1=0;
       switchuvm(p);
       swtch(&(c->scheduler), p->context);
     }
-sti();
+    // Disable interrupts on this processor.
+    sti();
   }
 }
 
