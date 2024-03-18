@@ -16,6 +16,10 @@ int nextpid = 1;
 extern void trapret(void);
 
 int total_0=0, total_1=0;
+#define FOREGROUND 0
+#define BACKGROUND 1
+#define MAX_FOREGROUND 9
+#define MAX_BACKGROUND 1
 
 int
 cpuid() {
@@ -137,7 +141,7 @@ int count_1=0;
 
     for(p2 = ptable.proc; p2 < &ptable.proc[NPROC]; p2++)
     {
-      if(p2->policy == 0)
+      if(p2->policy == FOREGROUND)
         total_0++;
       else
         total_1++;
@@ -150,35 +154,31 @@ int count_1=0;
         continue;
 
 
-      if(count_0 >=9 && count_1 >= 1)
+      if(count_0 >=MAX_FOREGROUND && count_1 >= MAX_BACKGROUND)
       {
         count_0=0;
         count_1=0;
       }
 
-      if (p->policy == 0  )        //run foreground (0) process
+      if (p->policy == FOREGROUND)        //run foreground (0) process
       { 
-        if (count_0<9 || total_1==0)
+        if (count_0<MAX_FOREGROUND || total_1==0)
         {  
           count_0++;
           total_0--;
         }
         else 
-        {
           continue;                 //skip when >=9 foreground process and <1 background
-        }
       }
-      else if(p->policy == 1  )  //run background (1) process
+      else if(p->policy == BACKGROUND  )  //run background (1) process
       {
-        if (count_1 < 1 || total_0==0)
+        if (count_1 < MAX_BACKGROUND || total_0==0)
         { 
           count_1++;
           total_1--;
         }
         else 
-        {
           continue;                //skip when <9 foreground process and >=1 background
-        }
       }
       
       // Switch to chosen process. 
