@@ -1,3 +1,6 @@
+#ifndef DEFS_H
+#define DEFS_H
+
 struct buf;
 struct context;
 struct file;
@@ -175,6 +178,7 @@ void            uartputc(int);
 // vm.c
 void            seginit(void);
 void            kvmalloc(void);
+pte_t*          walkpgdir(pde_t *pgdir, const void *va, int alloc);
 pde_t*          setupkvm(void);
 char*           uva2ka(pde_t*, char*);
 int             allocuvm(pde_t*, uint, uint);
@@ -190,3 +194,5 @@ void            clearpteu(pde_t *pgdir, char *uva);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
+
+#endif

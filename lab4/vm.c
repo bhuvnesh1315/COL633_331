@@ -32,11 +32,10 @@ seginit(void)
 // Return the address of the PTE in page table pgdir
 // that corresponds to virtual address va.  If alloc!=0,
 // create any required page table pages.
-static pte_t *
-walkpgdir(pde_t *pgdir, const void *va, int alloc)
+pte_t* walkpgdir(pde_t *pgdir, const void *va, int alloc)
 {
   pde_t *pde;
-  pte_t *pgtab;
+  pte_t *pgtab; 
 
   pde = &pgdir[PDX(va)];
   if(*pde & PTE_P){

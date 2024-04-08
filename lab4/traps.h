@@ -1,5 +1,9 @@
 // x86 trap and interrupt constants.
 
+#ifndef TRAPS_H
+#define TRAPS_H
+
+
 // Processor-defined:
 #define T_DIVIDE         0      // divide error
 #define T_DEBUG          1      // debug exception
@@ -32,7 +36,8 @@
 #define IRQ_TIMER        0
 #define IRQ_KBD          1
 #define IRQ_COM1         4
-#define IRQ_IDE         14
+#define IRQ_IDE         25
 #define IRQ_ERROR       19
 #define IRQ_SPURIOUS    31
 
+#endif

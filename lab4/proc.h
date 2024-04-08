@@ -1,3 +1,11 @@
+#ifndef PROC_H
+#define PROC_H
+
+
+#include "param.h"
+#include "types.h"
+#include "mmu.h"
+
 // Per-CPU state
 struct cpu {
   uchar apicid;                // Local APIC ID
@@ -57,3 +65,11 @@ struct proc {
 //   original data and bss
 //   fixed-size stack
 //   expandable heap
+
+uint find_victim_page( struct proc *p);
+
+struct proc* find_victim_process();
+
+uint find_pte(struct proc *p, uint* cnt_pte);
+
+#endif

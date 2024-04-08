@@ -1,3 +1,7 @@
+#ifndef FS_H
+#define FS_H
+
+
 // On-disk file system format.
 // Both the kernel and user programs use this header file.
 
@@ -19,6 +23,13 @@ struct superblock {
   uint logstart;     // Block number of first log block
   uint inodestart;   // Block number of first inode block
   uint bmapstart;    // Block number of first free map block
+  uint swapstart;    // Block number of first swap block
+  uint nswapslots;   // Number of swap slots
+};
+
+struct swap_slot_m
+{
+  uint page_perm, is_free;
 };
 
 #define NDIRECT 12
@@ -55,3 +66,8 @@ struct dirent {
   char name[DIRSIZ];
 };
 
+// struct swap_slot_m* arrange_swap_slot(uint *index);
+
+// uint free_swap_slot(uint index);
+
+#endif

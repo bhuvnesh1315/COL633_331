@@ -10,7 +10,7 @@
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
-} ptable;
+} ptable;     //process table
 
 static struct proc *initproc;
 
@@ -88,7 +88,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
-
+  p->rss=0;
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -357,6 +357,8 @@ scheduler(void)
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
+      // cprintf("\nscheduler\n");
+      // cprintf("\n p size = %d\n", p->sz);
 
       swtch(&(c->scheduler), p->context);
       switchkvm();
@@ -547,3 +549,71 @@ procdump(void)
     cprintf("\n");
   }
 }
+
+// returns VA of Page Table Entry
+uint find_pte(struct proc *p, uint* cnt_pte) {
+  pde_t *pte, *pgdir;
+  pte = 0;
+  pgdir = p->pgdir;
+  uint sz = p->sz, index;
+  *cnt_pte = 0;
+  for(index = 0; index < sz; index += PGSIZE){
+    if((pte = walkpgdir(pgdir, (void *) index, 0)) != 0) {
+      ++(*cnt_pte);
+      if((*pte & PTE_A) == 0) return index;
+    }
+  }
+  return -1;
+}
+
+struct proc* find_victim_process()
+{
+  cprintf("esljfsjdkf");
+  struct proc *p, *victim_proc;
+  
+  acquire(&ptable.lock);
+  
+  p = ptable.proc;
+  victim_proc= 0;
+  p++;
+
+  for(; p < &ptable.proc[NPROC]; p++)
+  {
+    if((p->state == UNUSED))
+      continue;
+    if(victim_proc == 0)
+      victim_proc = p;
+    else if(p->rss > victim_proc->rss)
+    {
+      victim_proc = p;
+    }
+    else if(p->rss == victim_proc->rss && victim_proc->pid > p->pid)
+    {
+      victim_proc = p;
+    }
+  }
+  release(&ptable.lock);
+
+  return victim_proc;
+}
+
+uint find_victim_page(struct proc *p)
+{
+  uint cnt_pte;
+  uint pte_index;
+
+  if((pte_index = find_pte(p, &cnt_pte)) != -1) return pte_index;
+  cnt_pte = (cnt_pte * 0.1);
+  uint i;
+  pde_t *pte;
+  for(i = 0; i < p->sz && cnt_pte > 0; i += PGSIZE){
+    pte = walkpgdir(p->pgdir, (void *) i, 0);
+    if(*pte != 0 &&  (*pte & PTE_A) != 0) {
+      *pte ^= PTE_A; // flip PTE_A
+      cnt_pte--;
+    }
+  }
+  pte_index = find_pte(p, &cnt_pte);
+  return pte_index;
+} 
+
