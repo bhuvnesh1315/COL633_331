@@ -34,9 +34,13 @@ main(void)
   ideinit();       // disk 
   startothers();   // start other processors
   kinit2(P2V(4*1024*1024), P2V(PHYSTOP)); // must come after startothers()
+<<<<<<< HEAD
   cprintf("\nbefore init swap slots\n");
   init_swap_slots();
   cprintf("\nafter init swap slots\n");
+=======
+  swapInit();
+>>>>>>> 3c1f7b3 (lab4)
   userinit();      // first user process
   cprintf("\nafter userinit\n");
   mpmain();        // finish this processor's setup

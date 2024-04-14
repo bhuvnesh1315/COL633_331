@@ -15,6 +15,7 @@
 //
 // mkfs computes the super block and builds an initial file system. The
 // super block describes the disk layout:
+
 struct superblock {
   uint size;         // Size of file system image (blocks)
   uint nblocks;      // Number of data blocks
@@ -23,6 +24,7 @@ struct superblock {
   uint logstart;     // Block number of first log block
   uint inodestart;   // Block number of first inode block
   uint bmapstart;    // Block number of first free map block
+<<<<<<< HEAD
   uint swapstart;    // Block number of first swap block
   uint nswapslots;   // Number of swap slots
 };
@@ -30,6 +32,12 @@ struct superblock {
 struct swap_slot_m
 {
   uint page_perm, is_free;
+=======
+
+// added
+  uint swapblocks;  // Number of swap blocks
+  uint swapstart;   // Block number of first swap block
+>>>>>>> 3c1f7b3 (lab4)
 };
 
 #define NDIRECT 12

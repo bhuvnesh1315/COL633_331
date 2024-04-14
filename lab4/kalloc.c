@@ -6,9 +6,15 @@
 #include "defs.h"
 #include "param.h"
 #include "memlayout.h"
+<<<<<<< HEAD
 #include "mmu.h"
 #include "spinlock.h"
 #include "pageswap.h"
+=======
+//#include "mmu.h"
+// #include "spinlock.h"
+#include "pageswap.c"
+>>>>>>> 3c1f7b3 (lab4)
 
 void freerange(void *vstart, void *vend);
 extern char end[]; // first address after kernel loaded from ELF file
@@ -86,11 +92,12 @@ kfree(char *v)
 // Allocate one 4096-byte page of physical memory.
 // Returns a pointer that the kernel can use.
 // Returns 0 if the memory cannot be allocated.
-char*
+char *
 kalloc(void)
 {
-  struct run *r;
+    struct run *r;
 
+<<<<<<< HEAD
   if(kmem.use_lock)
     acquire(&kmem.lock);
   r = kmem.freelist;
@@ -108,6 +115,28 @@ kalloc(void)
   if(kmem.use_lock)
     release(&kmem.lock);
   return (char*)r;
+=======
+    if (kmem.use_lock)
+        acquire(&kmem.lock);
+    r = kmem.freelist;
+    if (r)
+    {
+        kmem.freelist = r->next;
+        kmem.num_free_pages -= 1;
+    }
+
+    if (kmem.use_lock)
+        release(&kmem.lock);
+    
+    if (!r) {
+        cprintf("Num free pages before swapout : %d\n", num_of_FreePages());
+        swapOut();
+        cprintf("Num free pages after swapout : %d\n", num_of_FreePages());
+        return kalloc();
+    }
+
+    return (char *)r;
+>>>>>>> 3c1f7b3 (lab4)
 }
 
 uint 
