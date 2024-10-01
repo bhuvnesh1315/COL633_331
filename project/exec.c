@@ -75,7 +75,7 @@ exec(char *path, char **argv)
     sp = (sp - (strlen(argv[argc]) + 1)) & ~3;
     if(copyout(pgdir, sp, argv[argc], strlen(argv[argc]) + 1) < 0)
       goto bad;
-    ustack[3+argc] = sp;
+    ustack[3 + argc] = sp;
   }
   ustack[3+argc] = 0;
 
@@ -97,7 +97,11 @@ exec(char *path, char **argv)
   oldpgdir = curproc->pgdir;
   curproc->pgdir = pgdir;
   curproc->sz = sz;
-  curproc->tf->eip = elf.entry;  // main
+  
+  //TODO
+  curproc->rss = curproc->sz;
+  
+  curproc->tf->eip = elf.entry; // main
   curproc->tf->esp = sp;
   switchuvm(curproc);
   freevm(oldpgdir);

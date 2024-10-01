@@ -6,6 +6,7 @@
 #include "mmu.h"
 #include "proc.h"
 #include "elf.h"
+#include "swap.h"
 
 extern char data[];  // defined by kernel.ld
 pde_t *kpgdir;  // for use in scheduler()
@@ -32,7 +33,7 @@ seginit(void)
 // Return the address of the PTE in page table pgdir
 // that corresponds to virtual address va.  If alloc!=0,
 // create any required page table pages.
-static pte_t *
+pte_t *
 walkpgdir(pde_t *pgdir, const void *va, int alloc)
 {
   pde_t *pde;
@@ -237,6 +238,7 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       deallocuvm(pgdir, newsz, oldsz);
       return 0;
     }
+
     memset(mem, 0, PGSIZE);
     if(mappages(pgdir, (char*)a, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
       cprintf("allocuvm out of memory (2)\n");
@@ -244,6 +246,7 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       kfree(mem);
       return 0;
     }
+    myproc()->rss += PGSIZE;
   }
   return newsz;
 }
@@ -275,6 +278,7 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       *pte = 0;
     }
   }
+  myproc()->rss = newsz;
   return newsz;
 }
 
@@ -294,7 +298,7 @@ freevm(pde_t *pgdir)
       kfree(v);
     }
   }
-  kfree((char*)pgdir);
+  kfree((char *)pgdir);
 }
 
 // Clear PTE_U on a page. Used to create an inaccessible
@@ -310,38 +314,46 @@ clearpteu(pde_t *pgdir, char *uva)
   *pte &= ~PTE_U;
 }
 
+//? UPDATED
 // Given a parent process's page table, create a copy
 // of it for a child.
 pde_t*
-copyuvm(pde_t *pgdir, uint sz)
+copyuvm(pde_t *pgdir, uint sz, int parentPID, int childPID)
 {
   pde_t *d;
   pte_t *pte;
   uint pa, i, flags;
-  char *mem;
 
   if((d = setupkvm()) == 0)
     return 0;
-  for(i = 0; i < sz; i += PGSIZE){
-    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
-      panic("copyuvm: pte should exist");
-    if(!(*pte & PTE_P))
-      panic("copyuvm: page not present");
-    pa = PTE_ADDR(*pte);
-    flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto bad;
-    memmove(mem, (char*)P2V(pa), PGSIZE);
-    if(mappages(d, (void*)i, PGSIZE, V2P(mem), flags) < 0) {
-      kfree(mem);
-      goto bad;
-    }
+  for (i = 0; i < sz; i += PGSIZE)
+  {
+      if ((pte = walkpgdir(pgdir, (void *)i, 0)) == 0)
+          panic("copyuvm: pte should exist");
+
+      if (!(*pte & PTE_P))
+          panic("copyuvm: page not present");
+
+      *pte &= ~PTE_W;
+      pa = PTE_ADDR(*pte);
+      flags = PTE_FLAGS(*pte);
+
+      if (mappages(d, (void *)i, PGSIZE, pa, flags) < 0)
+      {
+          cprintf("uvmcopy : mappages\n");
+          goto bad;
+      }
+      incRmapRef(pa);
+      setRmapPagePid(pa, (uint)(parentPID - 1));
+      setRmapPagePid(pa, (uint)(childPID - 1));
   }
+  lcr3(V2P(pgdir));
   return d;
 
 bad:
-  freevm(d);
-  return 0;
+    freevm(d);
+    lcr3(V2P(pgdir));
+    return 0;
 }
 
 //PAGEBREAK!
@@ -365,24 +377,86 @@ uva2ka(pde_t *pgdir, char *uva)
 int
 copyout(pde_t *pgdir, uint va, void *p, uint len)
 {
-  char *buf, *pa0;
-  uint n, va0;
+    char *buf, *pa0;
+    uint n, va0;
 
-  buf = (char*)p;
-  while(len > 0){
-    va0 = (uint)PGROUNDDOWN(va);
-    pa0 = uva2ka(pgdir, (char*)va0);
-    if(pa0 == 0)
-      return -1;
-    n = PGSIZE - (va - va0);
-    if(n > len)
-      n = len;
-    memmove(pa0 + (va - va0), buf, n);
-    len -= n;
-    buf += n;
-    va = va0 + PGSIZE;
+    buf = (char *)p;
+
+    while (len > 0)
+    {
+        va0 = PGROUNDDOWN(va);
+        pa0 = uva2ka(pgdir, (char*)va0);
+
+        if (pa0 == 0)
+            return -1;
+
+        n = PGSIZE - (va - va0);
+
+        if (n > len)
+            n = len;
+
+        memmove(pa0 + (va - va0), buf, n);
+        len -= n;
+        buf += n;
+        va = va0 + PGSIZE;
   }
+
   return 0;
+}
+
+void page_fault_handler(){
+    struct proc *p = myproc();
+    uint addr = rcr2();
+    pde_t *pd = p->pgdir;
+    pte_t *pg = walkpgdir(pd, (void *)(addr), 0);
+    if (!(*pg & PTE_W) && (*pg & PTE_P))
+    {
+        if (cowalloc(p->pid, pd, addr) < 0)
+        {
+            kill(p->pid);
+        }
+    }
+    else {
+        if (SWAPON) {
+            char *memory;
+            memory = kalloc();
+            swapIn(memory);
+            p->rss += PGSIZE;
+        }
+    }
+}
+
+
+//?NEW
+int cowalloc(int pid, pde_t* pagetable, uint va)
+{
+    uint pa;
+    char *new_va;
+
+    pte_t *pte = walkpgdir(pagetable, (void *)va, 0);
+    if (pte == 0)
+        panic("[COWALLOC] no page present");
+
+    pa = PTE_ADDR(*pte);
+
+    if (getRmapRef(pa) > 1) {
+        if ((new_va = kalloc()) == 0)
+            panic("cowalloc : kalloc");
+
+        memmove(new_va, (void *)P2V(pa), PGSIZE);
+        *pte = V2P(new_va) | PTE_W | PTE_U | PTE_P;
+        unsetRmapPagePid(pa, (uint)(pid-1));
+        decRmapRef(pa);
+        lcr3(V2P(pagetable));
+        return 0;
+    }
+    else if (getRmapRef(pa) == 1) {
+        *pte |= PTE_W;
+        lcr3(V2P(pagetable));
+        return 0;
+    }
+
+    return -1;
 }
 
 //PAGEBREAK!
