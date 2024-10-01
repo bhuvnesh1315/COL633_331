@@ -1,7 +1,3 @@
-#ifndef FS_H
-#define FS_H
-
-
 // On-disk file system format.
 // Both the kernel and user programs use this header file.
 
@@ -9,13 +5,17 @@
 #define ROOTINO 1  // root i-number
 #define BSIZE 512  // block size
 
+#define NSWAP 20 // Number of swap slots
+
+#define PAGE_SIZE 4096
+
+
 // Disk layout:
-// [ boot block | super block | log | inode blocks |
+// [ boot block | super block | swap blocks| log | inode blocks |
 //                                          free bit map | data blocks]
 //
 // mkfs computes the super block and builds an initial file system. The
 // super block describes the disk layout:
-
 struct superblock {
   uint size;         // Size of file system image (blocks)
   uint nblocks;      // Number of data blocks
@@ -24,20 +24,13 @@ struct superblock {
   uint logstart;     // Block number of first log block
   uint inodestart;   // Block number of first inode block
   uint bmapstart;    // Block number of first free map block
-<<<<<<< HEAD
-  uint swapstart;    // Block number of first swap block
-  uint nswapslots;   // Number of swap slots
+  uint swapstart;
+  uint nswap;
 };
 
-struct swap_slot_m
-{
-  uint page_perm, is_free;
-=======
-
-// added
-  uint swapblocks;  // Number of swap blocks
-  uint swapstart;   // Block number of first swap block
->>>>>>> 3c1f7b3 (lab4)
+struct swap_slot {
+    int page_perm;
+    int is_free;
 };
 
 #define NDIRECT 12
@@ -74,8 +67,3 @@ struct dirent {
   char name[DIRSIZ];
 };
 
-// struct swap_slot_m* arrange_swap_slot(uint *index);
-
-// uint free_swap_slot(uint index);
-
-#endif

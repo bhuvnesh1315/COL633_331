@@ -5,7 +5,6 @@
 #include "mmu.h"
 #include "proc.h"
 #include "x86.h"
-#include "pageswap.h"
 
 static void startothers(void);
 static void mpmain(void)  __attribute__((noreturn));
@@ -34,17 +33,8 @@ main(void)
   ideinit();       // disk 
   startothers();   // start other processors
   kinit2(P2V(4*1024*1024), P2V(PHYSTOP)); // must come after startothers()
-<<<<<<< HEAD
-  cprintf("\nbefore init swap slots\n");
-  init_swap_slots();
-  cprintf("\nafter init swap slots\n");
-=======
-  swapInit();
->>>>>>> 3c1f7b3 (lab4)
   userinit();      // first user process
-  cprintf("\nafter userinit\n");
   mpmain();        // finish this processor's setup
-  cprintf("\nafter mpmain\n");
 }
 
 // Other CPUs jump here from entryother.S.
@@ -64,9 +54,7 @@ mpmain(void)
   cprintf("cpu%d: starting %d\n", cpuid(), cpuid());
   idtinit();       // load idt register
   xchg(&(mycpu()->started), 1); // tell startothers() we're up
-  cprintf("\nbefore scheduler in npmain\n");
   scheduler();     // start running processes
-  cprintf("\after scheduler in npmain\n");
 }
 
 pde_t entrypgdir[];  // For entry.S

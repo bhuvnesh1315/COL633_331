@@ -24,6 +24,7 @@ proc.h
 proc.c
 swtch.S
 kalloc.c
+pageswap.c
 
 # system calls
 traps.h

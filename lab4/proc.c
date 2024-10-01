@@ -6,12 +6,11 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
-#include <stddef.h>
 
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
-} ptable;     //process table
+} ptable;
 
 static struct proc *initproc;
 
@@ -89,7 +88,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
-  p->rss=0;
+
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -171,7 +170,6 @@ growproc(int n)
       return -1;
   }
   curproc->sz = sz;
-  curproc->rss += n;
   switchuvm(curproc);
   return 0;
 }
@@ -199,7 +197,6 @@ fork(void)
     return -1;
   }
   np->sz = curproc->sz;
-  np->rss = curproc->rss;
   np->parent = curproc;
   *np->tf = *curproc->tf;
 
@@ -360,8 +357,6 @@ scheduler(void)
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
-      // cprintf("\nscheduler\n");
-      // cprintf("\n p size = %d\n", p->sz);
 
       swtch(&(c->scheduler), p->context);
       switchkvm();
@@ -553,132 +548,19 @@ procdump(void)
   }
 }
 
-<<<<<<< HEAD
-// returns VA of Page Table Entry
-uint find_pte(struct proc *p, uint* cnt_pte) {
-  pde_t *pte, *pgdir;
-  pte = 0;
-  pgdir = p->pgdir;
-  uint sz = p->sz, index;
-  *cnt_pte = 0;
-  for(index = 0; index < sz; index += PGSIZE){
-    if((pte = walkpgdir(pgdir, (void *) index, 0)) != 0) {
-      ++(*cnt_pte);
-      if((*pte & PTE_A) == 0) return index;
-    }
-  }
-  return -1;
-}
-
-struct proc* find_victim_process()
-{
-  cprintf("esljfsjdkf");
-  struct proc *p, *victim_proc;
-  
-  acquire(&ptable.lock);
-  
-  p = ptable.proc;
-  victim_proc= 0;
-  p++;
-
-  for(; p < &ptable.proc[NPROC]; p++)
-  {
-    if((p->state == UNUSED))
-      continue;
-    if(victim_proc == 0)
-      victim_proc = p;
-    else if(p->rss > victim_proc->rss)
-    {
-      victim_proc = p;
-    }
-    else if(p->rss == victim_proc->rss && victim_proc->pid > p->pid)
-    {
-      victim_proc = p;
-    }
-  }
-  release(&ptable.lock);
-
-  return victim_proc;
-}
-
-uint find_victim_page(struct proc *p)
-{
-  uint cnt_pte;
-  uint pte_index;
-
-  if((pte_index = find_pte(p, &cnt_pte)) != -1) return pte_index;
-  cnt_pte = (cnt_pte * 0.1);
-  uint i;
-  pde_t *pte;
-  for(i = 0; i < p->sz && cnt_pte > 0; i += PGSIZE){
-    pte = walkpgdir(p->pgdir, (void *) i, 0);
-    if(*pte != 0 &&  (*pte & PTE_A) != 0) {
-      *pte ^= PTE_A; // flip PTE_A
-      cnt_pte--;
-    }
-  }
-  pte_index = find_pte(p, &cnt_pte);
-  return pte_index;
-} 
-
-=======
-struct proc *find_victim_process(void) {
-    struct proc *p;
-    struct proc *victim_p = NULL;
-    int pid = 100000;
-    uint highest_rss = 0;
+// Function to find a victim process
+struct proc*
+find_victim_process(void) {
+    struct proc *p, *victim = 0;
+    int max_rss = -1;
 
     acquire(&ptable.lock);
-    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    {
-        if(p->pid < 2) continue;
-
-        if (p->rss >= highest_rss)
-        {
-            if (p->pid < pid) {
-                pid = p->pid;
-            }
-
-            victim_p = p;
-            highest_rss = p->rss;
+    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+        if (p->rss > max_rss || (p->rss == max_rss && p->pid < victim->pid)) {
+            victim = p;
+            max_rss = p->rss;
         }
     }
     release(&ptable.lock);
-    cprintf("Victim Process id : %p\n", pid);
-    return victim_p;
+    return victim;
 }
-
-//TODO
-uint find_victim_page(struct proc* p)
-{
-    uint i;
-    uint sz = p->sz;
-    pte_t *pte;
-    uint count = 0;
-
-    for (i = 0; i < sz; i += PGSIZE)
-    {
-        pte = walkpgdir(p->pgdir, (void *)i, 0);
-        if ((*pte & PTE_P) && !(*pte & PTE_A) && (*pte & PTE_U)) {
-            p->rss -= PGSIZE;
-            cprintf("Victim page addr : %p\n", P2V(PTE_ADDR(*pte)));
-            return i;
-        }
-        if (*pte & PTE_P) count++;
-    }
-
-    count = (count / 10) + 1;
-    for (i = 0; i < sz; i += PGSIZE)
-    {
-        pte = walkpgdir(p->pgdir, (void *)i, 0);
-        if ((*pte & PTE_P) && (*pte & PTE_A) && (*pte & PTE_U))
-        {
-            *pte &= ~PTE_A;
-            count--;
-        }
-        if (!count)
-            break;
-    }
-    return find_victim_page(p);
-}
->>>>>>> 3c1f7b3 (lab4)

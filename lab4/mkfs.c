@@ -16,28 +16,24 @@
 #endif
 
 #define NINODES 200
-#define NSWAPSLOTS 100
-
-
-#define SWAPPAGES 20
-#define SWAPBLOCKS SWAPPAGES*8
 
 // Disk layout:
-// [ boot block | sb block | swap blocks | log | inode blocks | free bit map | data blocks ]
+// [ boot block | sb block | log | inode blocks | free bit map | data blocks ]
 
 int nbitmap = FSSIZE/(BSIZE*8) + 1;
 int ninodeblocks = NINODES / IPB + 1;
 int nlog = LOGSIZE;
 int nmeta;    // Number of meta blocks (boot, sb, nlog, inode, bitmap)
 int nblocks;  // Number of data blocks
-int nswapblocks = NSWAPSLOTS << 3; // number of swap blocks = 8 * (no. of swap slots), pageSize=4KB, DBSize=512B
+
+int nswapblocks=SWAPSIZE;
 
 int fsfd;
 struct superblock sb;
 char zeroes[BSIZE];
 uint freeinode = 1;
 uint freeblock;
-// struct swap_slot_m swap_slots_buffer[NSWAPSLOTS];
+
 
 void balloc(int);
 void wsect(uint, void*);
@@ -70,16 +66,6 @@ xint(uint x)
   return y;
 }
 
-
-// void init_swap_slots()
-// {
-
-//   for(uint i=0;i<NSWAPSLOTS;i++)
-//   {
-//     swap_slots_buffer[i].is_free=1;
-//   }
-// }
-
 int
 main(int argc, char *argv[])
 {
@@ -107,47 +93,24 @@ main(int argc, char *argv[])
   }
 
   // 1 fs block = 1 disk sector
-<<<<<<< HEAD
-  nmeta = 2 + nswapblocks +  nlog + ninodeblocks + nbitmap;
-=======
-  //nmeta = 2 +nlog + ninodeblocks + nbitmap;
-  nmeta = 2 + SWAPBLOCKS + nlog + ninodeblocks + nbitmap;
->>>>>>> 3c1f7b3 (lab4)
+  nmeta = 2 +nswapblocks+ nlog + ninodeblocks + nbitmap;
   nblocks = FSSIZE - nmeta;
 
   sb.size = xint(FSSIZE);
   sb.nblocks = xint(nblocks);
   sb.ninodes = xint(NINODES);
-  sb.nswapslots = xint(NSWAPSLOTS);
   sb.nlog = xint(nlog);
-<<<<<<< HEAD
-  sb.swapstart = xint(2);
-  sb.logstart = xint(2 + nswapblocks);
-  sb.inodestart = xint(2+nlog + nswapblocks);
-  sb.bmapstart = xint(2+nlog+ninodeblocks + nswapblocks);
+  sb.logstart = xint(2+nswapblocks);
+  sb.inodestart = xint(2+nlog+nswapblocks);
+  sb.bmapstart = xint(2+nlog+ninodeblocks+nswapblocks);
+  sb.swapstart = xint(2); 
+  sb.nswap = xint(nswapblocks);
 
-  printf("nmeta %d (boot, super, nswapslots %d, log blocks %u inode blocks %u, bitmap blocks %u) blocks %d total %d\n",
-         nmeta, NSWAPSLOTS, nlog, ninodeblocks, nbitmap, nblocks, FSSIZE);
-=======
-  //sb.logstart = xint(2);
-  sb.logstart = xint(SWAPBLOCKS+2);
-  //sb.inodestart = xint(2+nlog);
-  sb.inodestart = xint(2+SWAPBLOCKS+nlog);
-  //sb.bmapstart = xint(2+nlog+ninodeblocks);
-  sb.bmapstart = xint(2+SWAPBLOCKS+nlog+ninodeblocks);
-
-  // added
-  sb.swapblocks = xint(SWAPBLOCKS);
-  sb.swapstart = xint(2);
-
-  printf("nmeta %d (boot, super, swap blocks %u log blocks %u inode blocks %u, bitmap blocks %u) blocks %d total %d\n",
-         nmeta, SWAPBLOCKS, nlog, ninodeblocks, nbitmap, nblocks, FSSIZE);
->>>>>>> 3c1f7b3 (lab4)
+  printf("nmeta %d (boot, super, swap blocks %u,log blocks %u inode blocks %u, bitmap blocks %u) blocks %d total %d\n",
+         nmeta, nswapblocks,nlog, ninodeblocks, nbitmap, nblocks, FSSIZE);
 
   freeblock = nmeta;     // the first free block that we can allocate
 
-  //init_swap_slots();
-  
   for(i = 0; i < FSSIZE; i++)
     wsect(i, zeroes);
 
@@ -336,25 +299,3 @@ iappend(uint inum, void *xp, int n)
   din.size = xint(off);
   winode(inum, &din);
 }
-
-// struct swap_slot_m* arrange_swap_slot(uint *index) 
-// {
-//   uint i;
-//   for(i = 0; i < NSWAPSLOTS; i++) 
-//   {
-//     if(swap_slots_buffer[i].is_free)
-//       break;
-//   }
-//   *index = i;
-//   return &swap_slots_buffer[i]; // watch out
-// }
-
-// //return page permission and free swap slot
-// uint free_swap_slot(uint index)
-// {
-//   uint perm = swap_slots_buffer[index].page_perm;
-//   swap_slots_buffer[index].is_free = 1;
-
-//   return perm;
-// }
-

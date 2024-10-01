@@ -1,6 +1,3 @@
-#ifndef DEFS_H
-#define DEFS_H
-
 struct buf;
 struct context;
 struct file;
@@ -12,6 +9,8 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct swb;
+
 typedef uint pte_t;
 
 // bio.c
@@ -56,6 +55,8 @@ struct inode*   nameiparent(char*, char*);
 int             readi(struct inode*, char*, uint, uint);
 void            stati(struct inode*, struct stat*);
 int             writei(struct inode*, char*, uint, uint);
+// uint            write_to_swap(char*);
+// int             read_from_swap(uint, char*);
 
 // ide.c
 void            ideinit(void);
@@ -115,6 +116,9 @@ int             growproc(int);
 int             kill(int);
 struct cpu*     mycpu(void);
 struct proc*    myproc();
+
+
+
 void            pinit(void);
 void            procdump(void);
 void            scheduler(void) __attribute__((noreturn));
@@ -125,9 +129,8 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
-void            print_rss(void);
-uint find_victim_page(struct proc*);
-struct proc *find_victim_process(void);
+void             print_rss(void);
+struct proc*    find_victim_process(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -181,7 +184,6 @@ void            uartputc(int);
 // vm.c
 void            seginit(void);
 void            kvmalloc(void);
-pte_t*          walkpgdir(pde_t *pgdir, const void *va, int alloc);
 pde_t*          setupkvm(void);
 char*           uva2ka(pde_t*, char*);
 int             allocuvm(pde_t*, uint, uint);
@@ -194,11 +196,21 @@ void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
-// added
-void            page_fault_handler();
-pte_t *walkpgdir(pde_t *, const void *, int);
-void swapInit(void);
+
+pte_t*          walkpgdir(pde_t*, const void*, int);
+void            pagefault();
+
+
+//pageswap.c
+void            initpageswap(uint);
+pte_t*          find_victim_page(struct proc*);
+char*           swapout(void);
+void            swapin(void);
+void            unmark_accessed_pages(struct proc*);
+
+uint            write_to_swap(char*);
+void            read_from_swap(uint, char*);
+
+
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
-
-#endif

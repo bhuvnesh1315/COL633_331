@@ -7,11 +7,6 @@
 #include "x86.h"
 #include "traps.h"
 #include "spinlock.h"
-<<<<<<< HEAD
-#include "pageswap.h"
-=======
-// #include "vm.c"
->>>>>>> 3c1f7b3 (lab4)
 
 // Interrupt descriptor table (shared by all CPUs).
 struct gatedesc idt[256];
@@ -52,6 +47,10 @@ trap(struct trapframe *tf)
   }
 
   switch(tf->trapno){
+  case T_PGFLT:
+    // page fault then do swap-in copy from disk to memory.
+    pagefault();
+    break;
   case T_IRQ0 + IRQ_TIMER:
     if(cpuid() == 0){
       acquire(&tickslock);
@@ -59,11 +58,6 @@ trap(struct trapframe *tf)
       wakeup(&ticks);
       release(&tickslock);
     }
-    lapiceoi();
-    break;
-  case T_IRQ0 + T_PGFLT:
-    cprintf("page fault detected");
-    pagefault_handler();
     lapiceoi();
     break;
   case T_IRQ0 + IRQ_IDE:
@@ -87,10 +81,7 @@ trap(struct trapframe *tf)
             cpuid(), tf->cs, tf->eip);
     lapiceoi();
     break;
-  // added
-  case T_PGFLT:
-    page_fault_handler();
-    break;
+
   //PAGEBREAK: 13
   default:
     if(myproc() == 0 || (tf->cs&3) == 0){

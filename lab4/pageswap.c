@@ -1,231 +1,146 @@
-<<<<<<< HEAD
-#include "pageswap.h"
+//find victim process and victim page
 
-// extract page directory entry
-#define PDE_EXTRACT(va) ((uint)(va) & ~0x3FFFFF)
-#define SWAP_START 2
+// for victim process
+    // iterate through page table and find processes with maximum rss(for this add another attribute to struct proc in proc.h and increase it when ever u alocate a page it)
+    // if rss is same then choose lowest pid process.
+// for vivtim page
+    // iterate through process page table and find page this flag is set `PTE_P` and `PTE_A` not set.
 
-void swap_write(pte_t *va, uint slot_no) {
-    uint swap_start = 2;
-    for(uint i = 0; i < 8; i++) {
-        uint blockno = swap_start + slot_no * 8 + i;
-        struct buf* buffer = bread(ROOTDEV, blockno); 
-        memmove(buffer, va, BSIZE);
-        bwrite(buffer);
-        brelse(buffer);
-        va += BSIZE;
-    }
-}
-
-void *
-swap_out()
-{
-    // find victim process
-
-    struct proc *p = find_victim_process();
-    // find victim page
-    // uint pt_index;
-    // pt_index = find_victim_page(p);
-    // uint pg_va;
-    // pg_va = PDE_EXTRACT(p->pgdir); // extract starting 10 bits of page's VA
-    // pg_va |= pt_index; // extract next 10 bits of page's VA 
-
-    // find victim page
-    uint swap_slot_index;
-    pte_t pg_va = find_victim_page(p);
-    // uint pa = PTE_ADDR(*pte);
-    pte_t *pte = walkpgdir(p->pgdir, (void *) pg_va, 0); 
-
-    // swap
-    struct swap_slot_m* free_slot = arrange_swap_slot(&swap_slot_index);
-    free_slot->is_free = 0;
-    free_slot->page_perm = PTE_FLAGS(*pte);
-
-    swap_write(&pg_va, swap_slot_index); 
-    swap_slot_index = swap_slot_index << 12;
-    
-    // update PTE, mark process not present
-    *pte ^= PTE_P;
-    *pte &= 0xFFF;
-    *pte |= swap_slot_index; 
-
-    //update rss value of process
-    p->rss -= BSIZE;
-
-    //return physical address
-    return (void *)(*pte & ~0xFFF);
-}
-
-void pagefault_handler() 
-{
-    uint pg_va;
-    pte_t *pte;
-    // uint cnt=0;
-    uint swap_slot_base, blockno, swap_slot_index;
-    struct  proc *p;
-    // char* pg;
-    char* new_page;
-    uint page_perm;
-
-    pg_va= rcr2();                                      // VA of page with page fault
-    p = mycpu()->proc;                                  // current process
-    pte = walkpgdir(p->pgdir, (void *) pg_va, 0);              // pte of page with page fault
-    swap_slot_index = PTE_ADDR(*pte);
-    swap_slot_base = swap_slot_index + SWAP_START;      // address of swap slot
-    new_page= kalloc();                                 // allocate new page in physical memory
-    
-    for(int i = 0; i < 8; ++i) 
-    {
-        blockno = swap_slot_base + i;                   // disk block in a swap slot
-        struct buf* buffer = bread(ROOTDEV, blockno);   //read into buffer cache
-        memmove(new_page, buffer, BSIZE);
-        brelse(buffer);
-        new_page += BSIZE;
-    }
-
-    //inc rss
-    p->rss += BSIZE;
-
-    // update PTE of process (also restore PTE_P flag)
-    page_perm = free_swap_slot(swap_slot_index);
-    *pte &= ~0xFFF;                                     // setting  12 LSBs zero  
-    *pte = *pte | page_perm;                            // restore permissions
-    
-}
-
-
-struct swap_slot_m* arrange_swap_slot(uint *index) 
-{
-  uint i;
-  for(i = 0; i < NSWAPSLOTS; i++) 
-  {
-    if(swap_slots_buffer[i].is_free)
-      break;
-  }
-  *index = i;
-  return &swap_slots_buffer[i]; // watch out
-}
-
-//return page permission and free swap slot
-uint free_swap_slot(uint index)
-{
-  uint perm = swap_slots_buffer[index].page_perm;
-  swap_slots_buffer[index].is_free = 1;
-
-  return perm;
-}
-
-void init_swap_slots()
-{
-
-  for(uint i=0;i<NSWAPSLOTS;i++)
-  {
-    swap_slots_buffer[i].is_free=1;
-    // cprintf("\ni= %d", swap_slots_buffer[i].is_free);
-  }
-=======
 #include "types.h"
 #include "defs.h"
 #include "param.h"
-#include "stat.h"
+#include "memlayout.h"
 #include "mmu.h"
-#include "spinlock.h"
-#include "sleeplock.h"
+#include "x86.h"
 #include "proc.h"
 #include "fs.h"
+#include "spinlock.h"
+#include "sleeplock.h"
 #include "buf.h"
-#include "file.h"
-#include "swap.h"
-#include "x86.h"
 
-struct swapinfo
-{
-    int page_perm;
-    int is_free;
-};
+struct swap_slot swb[NSWAP];
+uint swap_start;
 
-struct swapinfo swp[20];
 
-  // buffer 
-
-void swapInit(void) {
-    for (int i = 0; i < 20; i++) {
-        swp[i].page_perm = 0;
-        swp[i].is_free = 1;
+void initpageswap(uint sb_swap_start){
+    swap_start = sb_swap_start;
+    for (uint ik = 0; ik < NSWAP; ik++) {
+        swb[ik].is_free = 1; // Set all slots as free initially
+        swb[ik].page_perm = 0; // Initialize page permissions to 0
     }
 }
-
-void swapOut()
-{
-    struct superblock sb;
-    readsb(ROOTDEV, &sb);
-    // find victim page
-    struct proc *p = find_victim_process();
-    uint victim_page_VA = find_victim_page(p);
-    pte_t *victim_pte = walkpgdir(p->pgdir, (void*)victim_page_VA, 0);
-
-    int i;
-    // find free swap slot
-    for (i = 0; i < 20; ++i)
-    {
-        if (swp[i].is_free) {
-            break;
+// Function to find a victim page
+pte_t*
+find_victim_page(struct proc *p) {
+    pte_t *pte;
+    for (pte = p->pgdir; pte < &p->pgdir[NPTENTRIES]; pte++) {
+        if ((*pte & PTE_P) && !(*pte & PTE_A)) {
+            return pte;
         }
     }
-    cprintf("[SWAPOUT] Current slot : %d\n", i);
-    swp[i].page_perm = 0;
-    swp[i].is_free = 0;
-
-
-    // update swap slot permissions to match victim page permissions 
-    swp[i].page_perm = PTE_FLAGS(*victim_pte);
-
-    // cprintf("Victim page addr : %p\n", PTE_ADDR(*victim_page_VA));
-    *victim_pte &= ~PTE_P;
-    char *pa = (char*)P2V(PTE_ADDR(*victim_pte));
-    uint addressOffset;
-    for (int j = 0; j < 8; ++j)
-    {
-        // cprintf("Victim page copied Block no : %d\n", sb.swapstart + (8 * i) + j);
-        addressOffset = PTE_ADDR(*victim_pte) + (j * BSIZE);
-        struct buf *b = bread(ROOTDEV, sb.swapstart + (8*i) + j);
-        memmove(b->data, (void *)P2V(addressOffset), BSIZE);
-        bwrite(b);
-        brelse(b);
-    }
-    cprintf("[SWAPOUT] Swap slot used : %d\n", sb.swapstart + 8 * i);
-    *victim_pte = ((sb.swapstart + (8 * i)) << 12) & (~0xFFF);
-    // lcr3(V2P(myproc()->pgdir));
-    cprintf("[SWAPOUT] Swap slot block no : %d\n", *victim_pte >> 12);
-    cprintf("[SWAPOUT] VA : %p\n", pa);
-    kfree(pa);
-    cprintf("[SWAPOUT] Page freed by swapOut\n");
-    // return (char *)victim_page_VA;
+    return 0;
 }
 
-void swapIn(char *memory)
-{
-    struct proc *p = myproc();
-    uint addr = rcr2();
-    cprintf("[SWAPIN] Process is requesting page : %p, pid %d\n", V2P(addr), p->pid);
-    pde_t *pd = p->pgdir;
-    pte_t *pg = walkpgdir(pd, (void *)(addr), 0);
-
-    uint swapSlot = (*pg >> 12);    // physical address of swap block
-    cprintf("[SWAPIN] Swap slot block no : %p\n", swapSlot);
-    // int swapSlot = swap;         // swap block number (convert it to integer)
-    for(int i = 0; i < 8; i++)      // writes page into physical memory
-    {
-        struct buf *b = bread(ROOTDEV, swapSlot+i);
-        memmove(memory, b->data, BSIZE);
-        brelse(b);
-        memory += BSIZE;
+// Swapping-out procedure
+char *
+swapout(void) {
+    struct proc *victim_process = find_victim_process();
+    
+    pte_t *victim_page = find_victim_page(victim_process);
+    if (!victim_page) {
+        unmark_accessed_pages(victim_process); // In implementation, unset 10 percent of page PTE_A flags
+        victim_page = find_victim_page(victim_process);
     }
+    
+    char * page_pa =(char *) (*victim_page>>PTXSHIFT);
+    
+    uint sbn = write_to_swap(page_pa);
+    *victim_page=*victim_page &(0x00000111);
+    *victim_page = (*victim_page & ~PTE_P) | (sbn << PTXSHIFT);
+    kfree(page_pa);
+    struct proc *p=myproc();
+    p->rss=p->rss-4096;
+    return page_pa; 
+}
 
-    swapSlot = (swapSlot - 2) / 8;
-    *pg = (*memory) | PTE_P | swp[swapSlot].page_perm;
-    swp[swapSlot].is_free = 1;
-    cprintf("[SWAPIN] Swap slot freed : %d\n", swapSlot);
-    // swp[swapSlot].page_perm = 0;
->>>>>>> 3c1f7b3 (lab4)
+void
+swapin() {
+    struct proc *curproc = myproc();
+    curproc->rss=curproc->rss+4096;
+    pte_t *pte = walkpgdir(curproc->pgdir, (void *)rcr2, 1);
+   
+    uint sbn = *pte>>PTXSHIFT;
+    char *m = kalloc(); // Allocate memory for the page
+    curproc->rss+=4096;
+    // Read the page from the swap space
+    read_from_swap(sbn, m);
+    uint me=(uint)m<<PTXSHIFT;
+    // Update page table entry to mark it as swapped in
+    *pte = (uint)me | PTE_P ;
+    *pte=*pte & ~PTE_A;
+    swb[sbn].is_free=1;
+    
+}
+
+void 
+unmark_accessed_pages(struct proc *victim_process){
+    pte_t *pte;
+    struct proc *p=myproc();
+    uint b=p->rss;
+    uint k=b/4096;
+    k=k/10;
+    for (pte = p->pgdir; pte < &p->pgdir[NPTENTRIES]; pte++) {
+        if(k==0)
+        break;
+        if ((*pte & PTE_P) && !(*pte & PTE_A)){
+            *pte=(*pte)&(~PTE_A);
+            k--;
+        }
+            
+    }
+}
+
+
+
+uint write_to_swap(char *src)
+{
+    uint swap_slot_index=NSWAP;
+    for(int i=0;i<NSWAP;i++){
+      if(swb[i].is_free==1){
+      swap_slot_index=i;
+      break;
+      }
+    }
+    uint block_no= swap_start + 8*swap_slot_index;
+    uint bn=block_no;
+    // memmove(//find address of swap slot block , src);
+    for(uint i=0;i<8;i++){
+      struct buf * b=bread(ROOTDEV,block_no);
+      memmove(b,src,512);
+      b->blockno=block_no+i;
+      bwrite(b);
+      brelse(b);
+      src=src+512;
+    }
+    swb[swap_slot_index].page_perm = PTE_W | PTE_U; 
+
+    swb[swap_slot_index].is_free = 0;
+
+    return bn; 
+}
+
+void read_from_swap(uint swap_slot_index, char *dst)
+{
+    uint block_no= swap_start + 8*swap_slot_index;
+    for(uint i=0;i<8;i++){
+      struct buf* b=bread(ROOTDEV,block_no);
+      memmove(dst,b,512);
+      dst=dst+512;
+      block_no++;
+      brelse(b);
+    }
+    swb[swap_slot_index].page_perm = PTE_W | PTE_U; 
+
+    swb[swap_slot_index].is_free = 1;
+    
 }

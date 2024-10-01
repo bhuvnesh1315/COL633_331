@@ -25,7 +25,8 @@
 static void itrunc(struct inode*);
 // there should be one superblock per disk device, but we run with
 // only one device
-struct superblock sb; 
+struct superblock sb;
+
 
 // Read the super block.
 void
@@ -179,6 +180,7 @@ iinit(int dev)
   }
 
   readsb(dev, &sb);
+  initpageswap(sb.swapstart);
   cprintf("sb: size %d nblocks %d ninodes %d nlog %d logstart %d\
  inodestart %d bmap start %d\n", sb.size, sb.nblocks,
           sb.ninodes, sb.nlog, sb.logstart, sb.inodestart,
@@ -668,3 +670,5 @@ nameiparent(char *path, char *name)
 {
   return namex(path, 1, name);
 }
+
+
